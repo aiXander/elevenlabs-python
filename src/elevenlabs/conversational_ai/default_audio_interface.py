@@ -15,6 +15,9 @@ class DefaultAudioInterface(AudioInterface):
         except ImportError:
             raise ImportError("To use DefaultAudioInterface you must install pyaudio.")
         self.pyaudio = pyaudio
+        self.is_agent_speaking = False
+        self.speaking_lock = threading.Lock()
+        self.last_output_time = 0
 
     def start(self, input_callback: Callable[[bytes], None]):
         # Audio input is using callbacks from pyaudio which we simply pass through.
@@ -56,6 +59,9 @@ class DefaultAudioInterface(AudioInterface):
         self.p.terminate()
 
     def output(self, audio: bytes):
+        with self.speaking_lock:
+            self.is_agent_speaking = True
+            print("Agent is speaking: Locking")
         self.output_queue.put(audio)
 
     def interrupt(self):
@@ -68,16 +74,30 @@ class DefaultAudioInterface(AudioInterface):
                 _ = self.output_queue.get(block=False)
         except queue.Empty:
             pass
+        with self.speaking_lock:
+            print("Agent is done speaking: unlocking")
+            self.is_agent_speaking = False
 
     def _output_thread(self):
+        import time
+        
         while not self.should_stop.is_set():
             try:
                 audio = self.output_queue.get(timeout=0.25)
                 self.out_stream.write(audio)
+                self.last_output_time = time.time()
             except queue.Empty:
-                pass
+                # If the queue is empty for more than a short period,
+                # the agent has likely stopped speaking
+                if self.is_agent_speaking and time.time() - self.last_output_time > 0.75:
+                    with self.speaking_lock:
+                        print("Agent is done speaking: unlocking")
+                        self.is_agent_speaking = False
 
     def _in_callback(self, in_data, frame_count, time_info, status):
-        if self.input_callback:
+        with self.speaking_lock:
+            speaking = self.is_agent_speaking
+        
+        if self.input_callback and not speaking:
             self.input_callback(in_data)
         return (None, self.pyaudio.paContinue)

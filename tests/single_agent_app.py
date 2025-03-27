@@ -11,6 +11,9 @@ def main():
     API_KEY=os.environ.get('ELEVENLABS_API_KEY')
     
     client = ElevenLabs(api_key=API_KEY)
+    
+    # Create conversation with DefaultAudioInterface that automatically
+    # mutes the microphone while the agent is speaking to prevent feedback loops
     conversation = Conversation(
         client,
         AGENT_ID,
