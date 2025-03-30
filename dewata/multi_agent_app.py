@@ -1,6 +1,8 @@
 import os
 import time
 import threading
+import json
+import pprint
 from elevenlabs import ElevenLabs
 from elevenlabs.conversational_ai.conversation import Conversation, ConversationInitiationData
 from elevenlabs.conversational_ai.default_audio_interface import DefaultAudioInterface
@@ -11,6 +13,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 # Global hyperparameters
 MESSAGE_HISTORY_LIMIT = 20  # Maximum number of messages to include in history for next agent
+DEBUG = True
 
 class ConversationTracker:
     """Track the conversation history."""
@@ -74,7 +77,10 @@ def start_conversation_with_agent(agent_name, client, all_agent_data, tracker, r
     agent_data = all_agent_data[agent_name]
     
     config = _build_conversation_override(agent_data["config"], tracker, n_turns, verbose=1)
-    
+
+    if DEBUG:
+        exit()
+
     conversation = Conversation(
         client,
         agent_data["agent_id"],
@@ -96,10 +102,12 @@ def start_conversation_with_agent(agent_name, client, all_agent_data, tracker, r
         # Wait for agent to completely finish speaking
         audio_interface = conversation._audio_interface if hasattr(conversation, '_audio_interface') else conversation.audio_interface
         while getattr(audio_interface, 'is_agent_speaking', False):
+            print("Agent is still speaking... Sleeping for 0.5 seconds...")
             time.sleep(0.5)
             
     finally:
         conversation.end_session()
+        print(f"\n --- Conversation TERMINATED --- \n")
         try:
             wait_thread = threading.Thread(target=conversation.wait_for_session_end)
             wait_thread.daemon = True
@@ -117,39 +125,40 @@ def _build_conversation_override(agent_config, tracker, n_turns, verbose = 0):
 
     # Get agent prompt:
     agent_prompt = agent_config["prompt"]
-
-    # Add calendar context:
-    calendar_context = get_calendar_context_today()
     agent_cue_turns = n_turns - 1
     turn_indicator_cue = f"IMPORTANT: You will get a total of {agent_cue_turns} turns to speak after which this conversation will be closed. Make sure to end your final turn with a closed, finalizing statement / answer (not a question)!"
     agent_prompt += f"\n\n{turn_indicator_cue}"
+
+    # Get calendar context:
+    calendar_context = get_calendar_context_today()
+
     if tracker.history:
         conversation_history = tracker.get_formatted_history()
         history_context = f"\n\nConversation history with previous agent(s):\n{conversation_history}\n\nContinue the conversation based on this history and remember you only get {agent_cue_turns} turns to speak!"
     else:
-        history_context = ""
-
+        history_context = "New conversation starting now."
+    
     # Construct final agent prompt:
     conversation_override["agent"]["prompt"]["prompt"] = f"{agent_prompt}\n{calendar_context}\n{history_context}"
 
     if verbose > 0:
         print("conversation_override:")
-        print(conversation_override)
+        print(json.dumps(conversation_override, indent=4))
+        
+        with open("conversation_override.json", "w") as f:
+            json.dump(conversation_override, f, indent=4)
 
     return ConversationInitiationData(conversation_config_override=conversation_override)
 
 def main():
-    API_KEY = os.environ.get('ELEVENLABS_API_KEY')
     all_agent_data = load_agents()
-    
-    client = ElevenLabs(api_key=API_KEY)
+    client = ElevenLabs(api_key=os.environ.get('ELEVENLABS_API_KEY'))
     tracker = ConversationTracker(message_limit=MESSAGE_HISTORY_LIMIT)
 
     #play_sound("tests/assets/audio/ambient/02.flac", async_play=True, loop=True)
     start_conversation_with_agent("Shakti", client, all_agent_data, tracker, n_turns=4)
     start_conversation_with_agent("JeroWiku", client, all_agent_data, tracker, n_turns=3)
     #play_random_sound("tests/assets/audio/gongs", async_play=True)
-        
 
 if __name__ == '__main__':
     main() 

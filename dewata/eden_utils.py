@@ -9,6 +9,7 @@ import yaml
 
 # Get the directory of the current file
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+print(f"Current directory: {CURRENT_DIR}")
 
 # Global variables for sound management
 pygame_initialized = False
@@ -153,7 +154,6 @@ def load_agents():
     """
     agents = {}
     for key, value in os.environ.items():
-        print(f"Key: {key}, Value: {value}")
         if key.startswith('AGENT_ID_'):
             agent_name = key.replace('AGENT_ID_', '')
             agents[agent_name] = {"agent_id": value}
@@ -172,11 +172,10 @@ def load_agents():
 def get_calendar_context_today():
     """Get the calendar context for today's date."""
     today = datetime.now().strftime("%Y-%m-%d")
-    calendar_path = os.path.join(os.path.dirname(CURRENT_DIR), 'calendar', f'{today}.txt')
-    print(f"Calendar path: {calendar_path}")
+    calendar_path = os.path.join(CURRENT_DIR, 'calendar', f'{today}.txt')
     if os.path.exists(calendar_path):
         with open(calendar_path, 'r') as file:
             calendar_context = file.read()
         return "Energy calendar context for today:\n" + calendar_context
     else:
-        return "No calendar context available for today."
+        raise Exception(f"Calendar file not found for today: {calendar_path}")
