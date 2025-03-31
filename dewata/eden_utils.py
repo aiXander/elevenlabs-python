@@ -6,10 +6,43 @@ import pygame
 import atexit
 from datetime import datetime
 import yaml
+from typing import Optional, Literal, Dict
 
 # Get the directory of the current file
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 print(f"Current directory: {CURRENT_DIR}")
+
+from openai import AsyncOpenAI
+async def async_llm_call(system_prompt: str, user_prompt: str, model: str = "gpt-4o-mini", temperature: float = 0.2, max_tokens: int = 100, response_format: Optional[Dict] = {"type": "json_object"}):
+    """Generic async function to call an LLM with system and user prompts.
+    
+    Args:
+        system_prompt: The system prompt to provide context for the model
+        user_prompt: The user prompt/question
+        model: The model to use for completion
+        temperature: Controls randomness (0-1)
+        max_tokens: Maximum number of tokens to generate
+        response_format: Format for the response, defaults to JSON
+        
+    Returns:
+        The model's response content
+    """
+    client = AsyncOpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
+    try:
+        response = await client.chat.completions.create(
+            model=model,
+            response_format=response_format,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=temperature,
+            max_tokens=max_tokens
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"Error in async LLM call: {e}")
+        return None
 
 # Global variables for sound management
 pygame_initialized = False
