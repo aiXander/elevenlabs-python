@@ -145,52 +145,70 @@ def start_conversation_with_agent(agent_name, client, all_agent_data, tracker, r
     tracker.set_current_agent(agent_name, min_turns=min_turns, max_turns=max_turns)
     agent_data = all_agent_data[agent_name]
     
-    config = _build_conversation_override(agent_data["config"], tracker, max_turns, verbose=1)
-
-    if DEBUG:
-        exit()
-
-    conversation = Conversation(
-        client,
-        agent_data["agent_id"],
-        requires_auth=requires_auth,
-        audio_interface=DefaultAudioInterface(),
-        config=config,
-        callback_agent_response=lambda response: asyncio.run(tracker.add_agent_message(response)),
-        callback_agent_response_correction=lambda original, corrected: print(f"Correction: '{original}' -> '{corrected}'"),
-        callback_user_transcript=lambda transcript: tracker.add_user_message(transcript)
-    )
-    conversation.start_session()
-    
     try:
-        while not tracker.should_switch_agent():
-            time.sleep(0.25)
-            
-        print(f"\n--- Ending conversation with agent: {agent_name} ---\n")
+        config = _build_conversation_override(agent_data["config"], tracker, max_turns, verbose=1)
+
+        if DEBUG:
+            exit()
+
+        conversation = Conversation(
+            client,
+            agent_data["agent_id"],
+            requires_auth=requires_auth,
+            audio_interface=DefaultAudioInterface(),
+            config=config,
+            callback_agent_response=lambda response: asyncio.run(tracker.add_agent_message(response)),
+            callback_agent_response_correction=lambda original, corrected: print(f"Correction: '{original}' -> '{corrected}'"),
+            callback_user_transcript=lambda transcript: tracker.add_user_message(transcript)
+        )
+        conversation.start_session()
         
-        # Wait for agent to completely finish speaking
-        audio_interface = conversation._audio_interface if hasattr(conversation, '_audio_interface') else conversation.audio_interface
-        while getattr(audio_interface, 'is_agent_speaking', False):
-            print("Agent is still speaking... Sleeping for 0.5 seconds...")
-            time.sleep(0.5)
-            
-    finally:
-        conversation.end_session()
-        print(f"\n --- Conversation TERMINATED --- \n")
         try:
-            wait_thread = threading.Thread(target=conversation.wait_for_session_end)
-            wait_thread.daemon = True
-            wait_thread.start()
-            wait_thread.join(timeout=2.0)
-        except Exception as e:
-            print(f"Warning during session cleanup: {e}")
+            while not tracker.should_switch_agent():
+                time.sleep(0.25)
+                
+            print(f"\n--- Ending conversation with agent: {agent_name} ---\n")
+            
+            # Wait for agent to completely finish speaking
+            audio_interface = conversation._audio_interface if hasattr(conversation, '_audio_interface') else conversation.audio_interface
+            while getattr(audio_interface, 'is_agent_speaking', False):
+                print("Agent is still speaking... Sleeping for 0.5 seconds...")
+                time.sleep(0.5)
+                
+        finally:
+            conversation.end_session()
+            print(f"\n --- Conversation TERMINATED --- \n")
+            try:
+                wait_thread = threading.Thread(target=conversation.wait_for_session_end)
+                wait_thread.daemon = True
+                wait_thread.start()
+                wait_thread.join(timeout=2.0)
+            except Exception as e:
+                print(f"Warning during session cleanup: {e}")
+    except Exception as e:
+        print(f"Error starting conversation with agent {agent_name}: {e}")
+        import traceback
+        traceback.print_exc()
 
 def _build_conversation_override(agent_config, tracker, max_turns, verbose = 0):
     """Build the conversation override configuration with agent prompt, calendar info and conversation history."""
     conversation_override = {}
     conversation_override["agent"] = {"prompt": {"prompt": ""}, "first_message": ""}
-    if "first_message" in agent_config:
+    if "first_message" in agent_config and 1:
         conversation_override["agent"]["first_message"] = agent_config["first_message"]
+    else:
+        # generate a new first message using an llm call:
+        system_prompt = """You come up with creative openings for spiritual beings that start a conversation with a pilgrim.
+        The pilgrim is a human who is visiting a spiritual installation.
+        The spiritual being is a divine entity that is trying to connect with the pilgrim.
+        The divine entity wants to know the pilgrim's name, place of birth, and the sacred moment of their conception in time.
+        """
+        user_prompt = f"""Based on the following Agent description, generate a first message for the agent:
+        {agent_config["prompt"]}
+        """
+        # Use asyncio.run to execute the async function in a synchronous context
+        response = asyncio.run(async_llm_call(system_prompt, user_prompt, model="gpt-4o-mini", temperature=0.5, max_tokens=100))
+        conversation_override["agent"]["first_message"] = response
 
     # Get agent prompt:
     agent_prompt = agent_config["prompt"]
@@ -211,11 +229,13 @@ def _build_conversation_override(agent_config, tracker, max_turns, verbose = 0):
     conversation_override["agent"]["prompt"]["prompt"] = f"{agent_prompt}\n{calendar_context}\n{history_context}"
 
     if verbose > 0:
+        # Print a serializable version of the conversation override
         print("conversation_override:")
-        print(json.dumps(conversation_override, indent=4))
+        serializable_override = dict(conversation_override)
+        print(json.dumps(serializable_override, indent=4))
         
         with open("conversation_override.json", "w") as f:
-            json.dump(conversation_override, f, indent=4)
+            json.dump(serializable_override, f, indent=4)
 
     return ConversationInitiationData(conversation_config_override=conversation_override)
 
@@ -225,8 +245,8 @@ def main():
     tracker = ConversationTracker(message_limit=MESSAGE_HISTORY_LIMIT)
 
     #play_sound("tests/assets/audio/ambient/02.flac", async_play=True, loop=True)
+    start_conversation_with_agent("Shakti", client, all_agent_data, tracker, min_turns=2, max_turns=4)
     start_conversation_with_agent("Shiva", client, all_agent_data, tracker, min_turns=2, max_turns=3)
-    start_conversation_with_agent("Shakti", client, all_agent_data, tracker, min_turns=2, max_turns=3)
     #play_random_sound("tests/assets/audio/gongs", async_play=True)
 
 if __name__ == '__main__':
