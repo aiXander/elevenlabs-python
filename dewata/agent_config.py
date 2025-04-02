@@ -42,7 +42,7 @@ class AgentConfigBuilder:
             max_tokens=100
         )
         print(f"Generated first message: {response}")
-        
+
         return response or "Greetings, pilgrim. Who am I speaking with?"
     
     @staticmethod
@@ -104,13 +104,6 @@ class AgentConfigBuilder:
                 
         return conversation_override
 
-def load_calendar_context():
-    """Load the calendar context for today."""
-    try:
-        return get_calendar_context_today()
-    except Exception as e:
-        raise Exception(f"Warning: Could not load calendar context: {e}")
-
 async def build_conversation_config(
     agent_config: Dict[str, Any],
     conversation_history: Optional[str] = None,
@@ -138,7 +131,7 @@ async def build_conversation_config(
     components = AgentContextComponents(
         base_prompt=agent_config["prompt"],
         first_message=first_message,
-        calendar_context=load_calendar_context(),
+        calendar_context=get_calendar_context_today(),
         conversation_history=AgentConfigBuilder.format_history_context(conversation_history, max_turns),
         turn_indicator=AgentConfigBuilder.create_turn_indicator(max_turns)
     )
