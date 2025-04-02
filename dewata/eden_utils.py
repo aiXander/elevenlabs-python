@@ -29,6 +29,12 @@ async def async_llm_call(system_prompt: str, user_prompt: str, model: str = "gpt
     """
     client = AsyncOpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
     try:
+        # Check if we're using json_object format and if 'json' is not in either prompt
+        if response_format and response_format.get("type") == "json_object":
+            if "json" not in (system_prompt + user_prompt).lower():
+                # Add json requirement to the user_prompt
+                user_prompt += "\nPlease provide the response in JSON format."
+        
         response = await client.chat.completions.create(
             model=model,
             response_format=response_format,

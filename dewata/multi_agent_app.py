@@ -11,6 +11,7 @@ from elevenlabs import ElevenLabs
 from elevenlabs.conversational_ai.conversation import Conversation, ConversationInitiationData
 from elevenlabs.conversational_ai.default_audio_interface import DefaultAudioInterface
 from eden_utils import *
+from agent_config import build_conversation_override
 
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
@@ -146,8 +147,8 @@ def start_conversation_with_agent(agent_name, client, all_agent_data, tracker, r
     agent_data = all_agent_data[agent_name]
     
     try:
-        config = _build_conversation_override(agent_data["config"], tracker, max_turns, verbose=1)
-
+        config = build_conversation_override(agent_data["config"], tracker, max_turns, verbose=1)
+        
         if DEBUG:
             exit()
 
@@ -189,55 +190,6 @@ def start_conversation_with_agent(agent_name, client, all_agent_data, tracker, r
         print(f"Error starting conversation with agent {agent_name}: {e}")
         import traceback
         traceback.print_exc()
-
-def _build_conversation_override(agent_config, tracker, max_turns, verbose = 0):
-    """Build the conversation override configuration with agent prompt, calendar info and conversation history."""
-    conversation_override = {}
-    conversation_override["agent"] = {"prompt": {"prompt": ""}, "first_message": ""}
-    if "first_message" in agent_config and 1:
-        conversation_override["agent"]["first_message"] = agent_config["first_message"]
-    else:
-        # generate a new first message using an llm call:
-        system_prompt = """You come up with creative openings for spiritual beings that start a conversation with a pilgrim.
-        The pilgrim is a human who is visiting a spiritual installation.
-        The spiritual being is a divine entity that is trying to connect with the pilgrim.
-        The divine entity wants to know the pilgrim's name, place of birth, and the sacred moment of their conception in time.
-        """
-        user_prompt = f"""Based on the following Agent description, generate a first message for the agent:
-        {agent_config["prompt"]}
-        """
-        # Use asyncio.run to execute the async function in a synchronous context
-        response = asyncio.run(async_llm_call(system_prompt, user_prompt, model="gpt-4o-mini", temperature=0.5, max_tokens=100))
-        conversation_override["agent"]["first_message"] = response
-
-    # Get agent prompt:
-    agent_prompt = agent_config["prompt"]
-    agent_cue_turns = max_turns - 1
-    turn_indicator_cue = f"IMPORTANT: You will get a total of {agent_cue_turns} turns to speak after which this conversation will be closed. Make sure to end your final turn with a closed, finalizing statement / answer (not a question)!"
-    agent_prompt += f"\n\n{turn_indicator_cue}"
-
-    # Get calendar context:
-    calendar_context = get_calendar_context_today()
-
-    if tracker.history:
-        conversation_history = tracker.get_formatted_history()
-        history_context = f"\n\nConversation history with previous agent(s):\n{conversation_history}\n\nContinue the conversation based on this history and remember you only get {agent_cue_turns} turns to speak!"
-    else:
-        history_context = "New conversation starting now."
-    
-    # Construct final agent prompt:
-    conversation_override["agent"]["prompt"]["prompt"] = f"{agent_prompt}\n{calendar_context}\n{history_context}"
-
-    if verbose > 0:
-        # Print a serializable version of the conversation override
-        print("conversation_override:")
-        serializable_override = dict(conversation_override)
-        print(json.dumps(serializable_override, indent=4))
-        
-        with open("conversation_override.json", "w") as f:
-            json.dump(serializable_override, f, indent=4)
-
-    return ConversationInitiationData(conversation_config_override=conversation_override)
 
 def main():
     all_agent_data = load_agents()
