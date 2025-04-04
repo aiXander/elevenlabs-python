@@ -32,7 +32,6 @@ async def async_llm_call(system_prompt: str, user_prompt: str, model: str = "gpt
         # Check if we're using json_object format and if 'json' is not in either prompt
         if response_format and response_format.get("type") == "json_object":
             if "json" not in (system_prompt + user_prompt).lower():
-                # Add json requirement to the user_prompt
                 user_prompt += "\nPlease provide the response in JSON format."
         
         response = await client.chat.completions.create(
@@ -208,7 +207,7 @@ def load_agents():
     print(f"Found {len(agents)} agents: {', '.join(agents.keys())}")
     return agents
 
-def get_calendar_context_today():
+def get_calendar_context_today(fallback: bool = True):
     """Get the calendar context for today's date."""
     today = datetime.now().strftime("%Y-%m-%d")
     calendar_path = os.path.join(CURRENT_DIR, 'calendar', f'{today}.txt')
@@ -217,4 +216,10 @@ def get_calendar_context_today():
             calendar_context = file.read()
         return "Energy calendar context for today:\n" + calendar_context
     else:
-        raise Exception(f"Calendar file not found for today: {calendar_path}")
+        if fallback:
+            calendar_path = os.path.join(CURRENT_DIR, 'calendar', f'2025-03-29.txt')
+            with open(calendar_path, 'r') as file:
+                calendar_context = file.read()
+            return "Energy calendar context for today:\n" + calendar_context
+        else:
+            raise Exception(f"Calendar file not found for today: {calendar_path}")

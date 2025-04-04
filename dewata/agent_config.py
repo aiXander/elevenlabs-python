@@ -22,7 +22,7 @@ class AgentConfigBuilder:
     @staticmethod
     async def generate_first_message(agent_prompt: str, conversation_history: Optional[str] = None) -> str:
         """Generate a first message for an agent using LLM if not provided."""
-        system_prompt = """You come up with creative opening lines for an interactive AI agent that starts a conversation with a visitor.
+        system_prompt = """You come up with creative opening lines for an interactive AI agent that has a conversation with a visitor.
         """
         user_prompt = f"""
         --- Agent description: ---
@@ -31,7 +31,7 @@ class AgentConfigBuilder:
         --- Conversation history: ---
         {conversation_history}
         --- End of conversation history ---
-        Based on the above Agent description, generate a first message for the agent that is at most 20 words.
+        Based on the above Agent description and optional conversation history, generate the first message for the agent that is at most 20 words. Respond with a json object with the key "message" and the value being the first message.
         """
         
         response = await async_llm_call(
@@ -41,9 +41,10 @@ class AgentConfigBuilder:
             temperature=0.8,
             max_tokens=100
         )
-        print(f"Generated first message: {response}")
+        
+        message = json.loads(response)["message"]
 
-        return response or "Greetings, pilgrim. Who am I speaking with?"
+        return message or "Greetings, pilgrim. Who am I speaking with?"
     
     @staticmethod
     def create_turn_indicator(max_turns: int) -> str:

@@ -147,7 +147,7 @@ def start_conversation_with_agent(agent_name, client, all_agent_data, tracker, r
     agent_data = all_agent_data[agent_name]
     
     try:
-        config = build_conversation_override(agent_data["config"], tracker, max_turns, verbose=1)
+        config = build_conversation_override(agent_data["config"], tracker, max_turns, verbose=0)
 
         if DEBUG:
             exit()
@@ -197,8 +197,8 @@ def main():
     tracker = ConversationTracker(message_limit=MESSAGE_HISTORY_LIMIT)
 
     #play_sound("tests/assets/audio/ambient/02.flac", async_play=True, loop=True)
-    start_conversation_with_agent("Shiva", client, all_agent_data, tracker, min_turns=2, max_turns=3)
     start_conversation_with_agent("Shakti", client, all_agent_data, tracker, min_turns=2, max_turns=4)
+    start_conversation_with_agent("Shiva", client, all_agent_data, tracker, min_turns=2, max_turns=3)
     #play_random_sound("tests/assets/audio/gongs", async_play=True)
 
 if __name__ == '__main__':
