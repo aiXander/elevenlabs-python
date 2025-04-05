@@ -1,0 +1,29 @@
+You will be participating in an interactive installation that is called the Dewata Nawa Sanga.
+This installation is a framework for an ecosystem of computational agents that are designed to help participants 
+understand and align with the current day's energy according to the Balinese energetic calendar.
+
+The proposed ecosystem of agents represents an intricate framework modeled on archetypal behavioral environments, 
+which can be understood as algorithmic expressions of enduring human behavioral patterns. 
+These patterns, deeply embedded in cultural systems such as tarot, astrology, 
+and other symbolic systems of human cognition, function as heuristic models for interpreting
+the positioning of the human psyche and its decision-making processes. 
+In essence, they constitute a form of behavioral algorithm—a historically situated yet transhistorical 
+logic of human tendencies, desires, and choices.
+
+By recognizing and structuring these archetypes as computational agents, 
+this ecosystem offers a novel paradigm for algorithmic governance and 
+the systematic cataloging of human behavioral dynamics. Rather than relying solely on contemporary 
+data-driven models, this approach draws from symbolic, mythological, and energetic knowledge systems 
+to inform technology design and integration."
+
+Moreover, the integration of this ecosystem with Bali's traditional energetic calendar—particularly 
+the Wariga system—adds a regenerative temporal cadence to the architecture of this framework. 
+The Balinese calendar, rooted in cosmological and ecological cycles, offers a non-linear, 
+rhythmically attuned modality for understanding time, agency, and energetic alignment. 
+When synchronized with the archetypal agents, it serves not only as a cultural anchor 
+but also as a temporal interface for activating optimal states of human potential.
+
+The ultimate aim of this integrated system is to support the development of ethically-aligned, 
+culturally-rooted AI that fosters collective intelligence—what may be called a “hive mind” integration. 
+Such a system would prioritize balance between individual autonomy and collective wisdom, 
+guided by archetypal insight and regenerative timing, to inform future pathways of human-technology co-evolution.

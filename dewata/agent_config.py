@@ -1,114 +1,56 @@
-import json
+import json, os
 import asyncio
-from typing import Dict, Optional, Union, Any
-from dataclasses import dataclass
+from typing import Dict, Optional, Any
 
 from elevenlabs.conversational_ai.conversation import ConversationInitiationData
-from eden_utils import get_calendar_context_today, async_llm_call
+from eden_utils import get_calendar_context_today, async_llm_call, save_conversation_override
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-@dataclass
-class AgentContextComponents:
-    """Container for all components that make up an agent's context."""
-    base_prompt: str
-    first_message: Optional[str] = None
-    calendar_context: Optional[str] = None
-    conversation_history: Optional[str] = None
-    turn_indicator: Optional[str] = None
-    additional_context: Optional[Dict[str, str]] = None
+def load_installation_context(person_name: str = None) -> str:
+    installation_context_path = os.path.join(CURRENT_DIR, 'installation', f'dewata.txt')
+    with open(installation_context_path, "r") as f:
+        installation_context = f.read()
 
-class AgentConfigBuilder:
-    """Builder class for creating agent configurations."""
-    
-    @staticmethod
-    async def generate_first_message(agent_prompt: str, conversation_history: Optional[str] = None) -> str:
-        """Generate a first message for an agent using LLM if not provided."""
-        system_prompt = """You come up with creative opening lines for an interactive AI agent that has a conversation with a visitor.
-        """
-        user_prompt = f"""
-        --- Agent description: ---
-        {agent_prompt}
-        --- End of agent description ---
-        --- Conversation history: ---
-        {conversation_history}
-        --- End of conversation history ---
-        Based on the above Agent description and optional conversation history, generate the first message for the agent that is at most 20 words. Respond with a json object with the key "message" and the value being the first message.
-        """
-        
-        response = await async_llm_call(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            model="gpt-4o-mini",
-            temperature=0.8,
-            max_tokens=100
-        )
-        
-        message = json.loads(response)["message"]
+    if person_name:
+        person_context_file = os.path.join(CURRENT_DIR, f"people/{person_name}.txt") 
+        with open(person_context_file, "r") as f:
+            person_context = f.read()
+        person_cue = f"\n\nYou will be speaking to a human visitor called {person_name}. Here is some additional information about them:\n{person_context}"
+        installation_context += person_cue
 
-        return message or "Greetings, pilgrim. Who am I speaking with?"
+    return installation_context
+
+async def generate_first_message(agent_prompt: str, conversation_history: Optional[str] = None) -> str:
+    """Generate a first message for an agent using LLM if not provided."""
+    system_prompt = """You come up with creative opening lines for an interactive AI agent that has a conversation with a visitor."""
     
-    @staticmethod
-    def create_turn_indicator(max_turns: int) -> str:
-        """Create a turn indicator message for the agent."""
-        agent_cue_turns = max_turns - 1
-        return f"IMPORTANT: You will get a total of {agent_cue_turns} turns to speak after which this conversation will be closed. Make sure to end your final turn with a closed, finalizing statement / answer (not a question)!"
+    user_prompt = f"""
+    --- Agent description: ---
+    {agent_prompt}
+    --- End of agent description ---
+    --- Conversation history: ---
+    {conversation_history}
+    --- End of conversation history ---
+    Based on the above Agent description and optional conversation history, generate the first message for the agent that is at most 20 words. Respond with a json object with the key "message" and the value being the first message.
+    """
     
-    @staticmethod
-    def format_history_context(history: Optional[str], max_turns: int) -> str:
-        """Format the conversation history context."""
-        if not history:
-            return "New conversation starting now."
-            
-        agent_cue_turns = max_turns - 1
-        return f"\n\nConversation history with previous agent(s):\n{history}\n\nContinue the conversation based on this history and remember you only get {agent_cue_turns} turns to speak!"
+    response = await async_llm_call(
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        model="gpt-4o-mini",
+        temperature=1.0,
+        max_tokens=100
+    )
     
-    @staticmethod
-    def build_prompt_template() -> str:
-        """Build the template for the final prompt."""
-        return (
-            "######### Agent Description #################\n\n"
-            "{base_prompt}\n\n"
-            "######### Calendar Context #################\n\n"
-            "{calendar_context}\n\n"
-            "######### Turn Indicator #################\n\n"
-            "{turn_indicator}\n\n"
-            "######### Conversation History #################\n\n"
-            "{history_context}"
-        )
-    
-    @staticmethod
-    def create_conversation_override(components: AgentContextComponents) -> Dict[str, Any]:
-        """Create the conversation override configuration from components."""
-        prompt_template = AgentConfigBuilder.build_prompt_template()
-        
-        # Format the final prompt
-        final_prompt = prompt_template.format(
-            base_prompt=components.base_prompt,
-            turn_indicator=components.turn_indicator or "",
-            calendar_context=components.calendar_context or "",
-            history_context=components.conversation_history or "New conversation starting now."
-        )
-        
-        # Build the conversation override structure
-        conversation_override = {
-            "agent": {
-                "prompt": {
-                    "prompt": final_prompt
-                },
-                "first_message": components.first_message or ""
-            }
-        }
-        
-        # Add any additional context if provided
-        if components.additional_context:
-            for key, value in components.additional_context.items():
-                conversation_override["agent"][key] = value
-                
-        return conversation_override
+    message = json.loads(response)["message"]
+    return message or "Greetings, pilgrim. Who am I speaking with?"
 
 async def build_conversation_config(
     agent_config: Dict[str, Any],
     conversation_history: Optional[str] = None,
     max_turns: int = 3,
+    is_final_turn: bool = False,
+    person_name: str = None,
     verbose: int = 0
 ) -> ConversationInitiationData:
     """
@@ -123,38 +65,75 @@ async def build_conversation_config(
     Returns:
         ConversationInitiationData object with the complete configuration
     """
+
+    installation_context = load_installation_context(person_name=person_name)
+
     # Get or generate first message
     first_message = agent_config.get("first_message", "")
     if not first_message:
-        first_message = await AgentConfigBuilder.generate_first_message(agent_config["prompt"], conversation_history)
+        first_message = await generate_first_message(agent_config["prompt"], conversation_history)
     
-    # Build the components
-    components = AgentContextComponents(
-        base_prompt=agent_config["prompt"],
-        first_message=first_message,
-        calendar_context=get_calendar_context_today(),
-        conversation_history=AgentConfigBuilder.format_history_context(conversation_history, max_turns),
-        turn_indicator=AgentConfigBuilder.create_turn_indicator(max_turns)
+    # Create turn indicator
+    agent_cue_turns = max_turns - 1
+    if is_final_turn:
+        turn_indicator = f"IMPORTANT: This is your final turn to respond in this conversation. Make sure to end with a a closed, finalizing statement / answer (not a question)!"
+    else:
+        turn_indicator = f"IMPORTANT: You will get a total of {agent_cue_turns} turns to speak after which this conversation will be closed. Make sure to end your final turn with a closed, finalizing statement / answer (not a question)!"
+    
+    # Format history context
+    if not conversation_history:
+        formatted_history = "New conversation starting now."
+    else:
+        formatted_history = f"\n\nConversation history with previous agent(s):\n{conversation_history}\n\nContinue the conversation based on this history and remember you only get {agent_cue_turns} turns to speak!"
+    
+    # Build the prompt template and format final prompt
+    prompt_template = (
+        "### Installation context ###\n\n"
+        "{installation_context}\n\n"
+        "### Today's Energy Calendar Context ###\n\n"
+        "{calendar_context}\n\n"
+        "### Agent Description ###\n\n"
+        "{base_prompt}\n\n"
+        "### Turn Indicator ###\n\n"
+        "{turn_indicator}\n\n"
+        "### Conversation History ###\n\n"
+        "{history_context}"
     )
     
-    # Create the conversation override
-    conversation_override = AgentConfigBuilder.create_conversation_override(components)
+    final_prompt = prompt_template.format(
+        installation_context=installation_context,
+        base_prompt=agent_config["prompt"],
+        turn_indicator=turn_indicator,
+        calendar_context=get_calendar_context_today() or "",
+        history_context=formatted_history
+    )
     
-    # Debugging output
-    if verbose > 0:
-        print("conversation_override:")
-        print(json.dumps(conversation_override, indent=4))
-        
-        with open("conversation_override.json", "w") as f:
-            json.dump(conversation_override, f, indent=4)
+    # Build the conversation override structure
+    conversation_override = {
+        "agent": {
+            "prompt": {
+                "prompt": final_prompt
+            },
+            "first_message": first_message
+        }
+    }
+    
+    # Add any additional context if provided in agent_config
+    additional_context = agent_config.get("additional_context", {})
+    if additional_context:
+        for key, value in additional_context.items():
+            conversation_override["agent"][key] = value
+
+    save_conversation_override(conversation_override, "conversation_override.txt")
     
     return ConversationInitiationData(conversation_config_override=conversation_override)
 
-# Synchronous wrapper for the async function
 def build_conversation_override(
     agent_config: Dict[str, Any],
     tracker,
     max_turns: int = 3,
+    is_final_turn: bool = False,
+    person_name: str = None,
     verbose: int = 0
 ) -> ConversationInitiationData:
     """
@@ -174,5 +153,7 @@ def build_conversation_override(
         agent_config=agent_config,
         conversation_history=conversation_history,
         max_turns=max_turns,
+        is_final_turn=is_final_turn,
+        person_name=person_name,
         verbose=verbose
     ))

@@ -10,7 +10,6 @@ from typing import Optional, Literal, Dict
 
 # Get the directory of the current file
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-print(f"Current directory: {CURRENT_DIR}")
 
 from openai import AsyncOpenAI
 async def async_llm_call(system_prompt: str, user_prompt: str, model: str = "gpt-4o-mini", temperature: float = 0.2, max_tokens: int = 100, response_format: Optional[Dict] = {"type": "json_object"}):
@@ -223,3 +222,30 @@ def get_calendar_context_today(fallback: bool = True):
             return "Energy calendar context for today:\n" + calendar_context
         else:
             raise Exception(f"Calendar file not found for today: {calendar_path}")
+
+import json
+import os
+import textwrap
+
+def save_conversation_override(conversation_override, filename):
+    # First, parse the conversation_override to get the raw data
+    parsed_data = json.loads(json.dumps(conversation_override))
+
+    # To display formatted text from a specific field, for example the prompt:
+    prompt_text = parsed_data["agent"]["prompt"]["prompt"]
+    
+    # Wrap long lines at 40 characters
+    wrapped_text = ""
+    for line in prompt_text.splitlines():
+        if len(line) > 40:
+            # Wrap this line at 40 characters
+            wrapped_line = textwrap.fill(line, width=120)
+            wrapped_text += wrapped_line + "\n"
+        else:
+            # Keep short lines as they are
+            wrapped_text += line + "\n"
+    
+    # Write the formatted text to a separate file
+    formatted_path = os.path.join(CURRENT_DIR, filename)
+    with open(formatted_path, "w") as f:
+        f.write(wrapped_text)
