@@ -198,8 +198,8 @@ def main():
 
     person_name = "xander"
 
-    start_conversation_with_agent("Shakti", client, all_agent_data, tracker, min_turns=2, max_turns=5, person_name=person_name)
-    start_conversation_with_agent("Shiva", client, all_agent_data, tracker, min_turns=2, max_turns=5, person_name=person_name)
+    start_conversation_with_agent("Shakti", client, all_agent_data, tracker, min_turns=3, max_turns=3, person_name=person_name)
+    start_conversation_with_agent("Shiva", client, all_agent_data, tracker, min_turns=3, max_turns=3, person_name=person_name)
 
 if __name__ == '__main__':
     main() 
