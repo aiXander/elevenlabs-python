@@ -15,7 +15,7 @@ def load_installation_context(person_name: str = None) -> str:
         person_context_file = os.path.join(CURRENT_DIR, f"people/{person_name}.txt") 
         with open(person_context_file, "r") as f:
             person_context = f.read()
-        person_cue = f"\n\nYou will be speaking to a human visitor called {person_name}. Here is some additional information about them:\n{person_context}"
+        person_cue = f"\n\nYou will be speaking to a human visitor called {person_name}. Here is some additional information about them:\n{person_context}\nTry to leverage this information to make the conversation more engaging and personalized."
         installation_context += person_cue
 
     return installation_context

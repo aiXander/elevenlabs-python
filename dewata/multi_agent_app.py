@@ -196,10 +196,13 @@ def main():
     client = ElevenLabs(api_key=os.environ.get('ELEVENLABS_API_KEY'))
     tracker = ConversationTracker(message_limit=MESSAGE_HISTORY_LIMIT)
 
-    person_name = "xander"
+    person_name = "marzipan"
+    #person_name = "gene"
+    #person_name = "ygor"
+    #person_name = None
 
-    start_conversation_with_agent("Shakti", client, all_agent_data, tracker, min_turns=3, max_turns=3, person_name=person_name)
-    start_conversation_with_agent("Shiva", client, all_agent_data, tracker, min_turns=3, max_turns=3, person_name=person_name)
+    start_conversation_with_agent("Shakti", client, all_agent_data, tracker, min_turns=3, max_turns=4, person_name=person_name)
+    start_conversation_with_agent("Shiva", client, all_agent_data, tracker, min_turns=3, max_turns=4, person_name=person_name)
 
 if __name__ == '__main__':
     main() 
